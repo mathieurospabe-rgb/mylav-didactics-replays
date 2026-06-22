@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MYLAV Didactics — Replays</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f4f8;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #1478C0;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .logo span { color: #BB3B3C; }
+
+  .subtitle {
+    font-size: 0.95rem;
+    color: #666;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 860px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: #1478C0;
+    color: white;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+
+  .card-header small {
+    font-size: 0.8rem;
+    opacity: 0.8;
+  }
+
+  .btn-pdf {
+    background: #BB3B3C;
+    color: white;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-pdf:hover { background: #a03132; }
+  .btn-pdf:disabled { background: #ccc; cursor: not-allowed; }
+
+  .btn-refresh {
+    background: transparent;
+    color: white;
+    border: 1px solid rgba(255,255,255,0.4);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-right: 10px;
+  }
+
+  .btn-refresh:hover { background: rgba(255,255,255,0.15); }
+
+  .status-bar {
+    padding: 12px 30px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    font-size: 0.85rem;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0;
+  }
+  .dot.green { background: #28a745; }
+  .dot.orange { background: #fd7e14; }
+  .dot.red { background: #dc3545; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: #f0f4f8;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #1478C0;
+    border-bottom: 2px solid #e0e8f0;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+  }
+
+  tbody tr:hover { background: #f8fbff; }
+
+  tbody td {
+    padding: 14px 16px;
+    font-size: 0.88rem;
+    color: #333;
+    vertical-align: middle;
+  }
+
+  .num {
+    font-weight: 700;
+    color: #1478C0;
+    width: 50px;
+  }
+
+  .date-cell { width: 100px; color: #666; }
+
+  .title-cell { font-weight: 500; }
+
+  .domain-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .replay-cell { width: 110px; text-align: center; }
+
+  .replay-link {
+    display: inline-block;
+    background: #1478C0;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+
+  .replay-link:hover { background: #0f5fa0; }
+
+  .no-replay {
+    color: #bbb;
+    font-size: 0.78rem;
+    font-style: italic;
+  }
+
+  .loading {
+    padding: 50px;
+    text-align: center;
+    color: #888;
+    font-size: 0.9rem;
+  }
+
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid #e0e8f0;
+    border-top-color: #1478C0;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    padding: 30px;
+    text-align: center;
+    color: #BB3B3C;
+  }
+
+  .config-box {
+    background: #fff8e1;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 20px 30px;
+    margin: 20px;
+    font-size: 0.88rem;
+    color: #555;
+    line-height: 1.6;
+  }
+
+  .config-box strong { color: #333; }
+  .config-box code {
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+  }
+
+  .footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 0.78rem;
+    color: #aaa;
+  }
+
+  /* Domain colors */
+  .d-hema { background: #fde8e8; color: #BB3B3C; }
+  .d-uro { background: #e3f0fb; color: #1478C0; }
+  .d-bio { background: #fff0e0; color: #e07b00; }
+  .d-onco { background: #f0e8ff; color: #7b3fc4; }
+  .d-derm { background: #ffe8f5; color: #c43f8a; }
+  .d-gastro { background: #e6f5e6; color: #2d7a2d; }
+  .d-infect { background: #fffde0; color: #8a7a00; }
+  .d-default { background: #f0f0f0; color: #666; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">MYL<span>A</span>V</div>
+  <div class="subtitle">Didactics — Catalogue des replays</div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2>🎓 Webinaires MYLAV Didactics</h2>
+      <small id="last-update">Chargement en cours…</small>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-refresh" onclick="loadData()">↻ Actualiser</button>
+      <button class="btn-pdf" id="btn-pdf" onclick="generatePDF()" disabled>
+        ⬇ Télécharger PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Connexion à Notion…</span>
+  </div>
+
+  <div id="content">
+    <div class="loading">
+      <div class="spinner"></div>
+      Chargement des webinaires…
+    </div>
+  </div>
+</div>
+
+<!-- Configuration notice - shown only if PAGE_ID not set -->
+<div class="config-box" id="config-notice" style="display:none; max-width:860px; width:100%;">
+  <strong>⚙️ Configuration requise</strong><br>
+  Pour connecter cette app à Notion, renseigne l'ID de la vue publique dans le fichier <code>index.html</code> :<br>
+  Remplace <code>NOTION_PAGE_ID</code> par l'ID de ta vue <strong>📤 Vue publique replays</strong>.
+</div>
+
+<div class="footer">
+  MYLAV — Laboratory of clinicians for clinicians · mylav.net/fr
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION — remplace par l'ID de ta page Notion publique
+// ============================================================
+const NOTION_PAGE_ID = 'NOTION_PAGE_ID_ICI';
+// ============================================================
+
+let webinaires = [];
+
+const domainClass = {
+  'Hématologie': 'd-hema',
+  'Urologie et analyse urine': 'd-uro',
+  'Urologie et analyse d\'urine': 'd-uro',
+  'Biochimie et protéines': 'd-bio',
+  'Oncologie': 'd-onco',
+  'Dermatologie': 'd-derm',
+  'Gastro-entérologie': 'd-gastro',
+  'Infectiologie et immunologie': 'd-infect',
+};
+
+function getDomainClass(domain) {
+  return domainClass[domain] || 'd-default';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+async function loadData() {
+  if (NOTION_PAGE_ID === 'NOTION_PAGE_ID_ICI') {
+    document.getElementById('config-notice').style.display = 'block';
+    setStatus('orange', 'Page Notion non configurée — voir la notice ci-dessous');
+    document.getElementById('content').innerHTML = `
+      <div class="error-box">
+        Configure l'ID de ta page Notion publique dans le fichier index.html.
+      </div>`;
+    return;
+  }
+
+  setStatus('orange', 'Connexion à Notion…');
+  document.getElementById('last-update').textContent = 'Chargement…';
+
+  try {
+    const url = `https://notion-proxy.vercel.app/api/page/${NOTION_PAGE_ID}`;
+    // On utilise l'API publique Notion via la page partagée
+    const res = await fetch(
+      `https://api.notion.com/v1/databases/${NOTION_PAGE_ID}/query`,
+      {
+        method: 'POST',
+        headers: { 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filter: { property: 'Statut', select: { equals: 'Diffusé' } },
+          sorts: [{ property: 'Numéro', direction: 'ascending' }]
+        })
+      }
+    );
+
+    if (!res.ok) throw new Error(`Erreur API: ${res.status}`);
+    const data = await res.json();
+    webinaires = parseResults(data.results);
+    renderTable();
+    setStatus('green', `${webinaires.length} webinaires chargés`);
+    document.getElementById('last-update').textContent =
+      `Mis à jour le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}`;
+    document.getElementById('btn-pdf').disabled = false;
+
+  } catch(e) {
+    // Fallback : données statiques intégrées (mises à jour manuellement)
+    loadStaticData();
+  }
+}
+
+function parseResults(results) {
+  return results.map(r => {
+    const p = r.properties;
+    return {
+      num: p['Numéro']?.number || '',
+      date: p['Date']?.date?.start || '',
+      titre: p['Webinaire']?.title?.[0]?.plain_text || '',
+      domaine: p['Domaine']?.select?.name || '',
+      replay: p['Lien replay']?.url || ''
+    };
+  });
+}
+
+function loadStaticData() {
+  // Données de secours — synchronisées avec Notion
+  webinaires = [
+    { num:1, date:'2023-11-23', titre:'Difficultés diagnostiques des maladies intestinales du chat au travers de cas cliniques', domaine:'Gastro-entérologie', replay:'https://streamyard.com/w5xcf6rkd8z7' },
+    { num:2, date:'2024-02-15', titre:'Électrophorèse des Protéines Sériques', domaine:'Biochimie et protéines', replay:'https://streamyard.com/qte75i7422uq' },
+    { num:3, date:'2024-04-02', titre:'Maîtriser les outils de diagnostic en Oncologie Vétérinaire', domaine:'Oncologie', replay:'https://streamyard.com/hdqssxa9ye5p' },
+    { num:4, date:'2024-06-18', titre:'Les secrets de la démarche en Oncologie clinique au travers de cas cliniques interactifs', domaine:'Oncologie', replay:'https://streamyard.com/9b2gfdsmy2f3' },
+    { num:5, date:'2024-07-02', titre:'Comment obtenir un diagnostic de qualité ? Guide pratique cytologie et analyse hématologique (1/2)', domaine:'Hématologie', replay:'https://streamyard.com/u692yexvc34r' },
+    { num:6, date:'2024-09-19', titre:'Comment obtenir un diagnostic de qualité ? Guide pratique cytologie et analyse hématologique (2/2)', domaine:'Hématologie', replay:'https://streamyard.com/f3c7qfwtmkyh' },
+    { num:7, date:'2024-10-08', titre:"AGP et autres protéines de l'inflammation : comment peuvent-elles nous aider dans le diagnostic de la PIF ?", domaine:'Infectiologie et immunologie', replay:'https://streamyard.com/vsuwuxfebga5' },
+    { num:8, date:'2024-12-10', titre:"L'analyse d'urine : ces éléments qui font la différence", domaine:'Urologie et analyse urine', replay:'https://streamyard.com/9qifnyk83izu' },
+    { num:9, date:'2025-01-30', titre:'Gestion du lymphome ganglionnaire canin : les essentiels à maîtriser', domaine:'Oncologie', replay:'https://streamyard.com/8rtrrdyk9sua2an4' },
+    { num:10, date:'2025-02-06', titre:"Le myélogramme de A à Z : indications, techniques de prélèvement, préparation des lames et procédure d'envoi", domaine:'Hématologie', replay:'https://streamyard.com/9ummpxm5yvah' },
+    { num:11, date:'2025-03-18', titre:'Infections du tractus urinaire : guide pratique pour un diagnostic et une conduite adaptée', domaine:'Urologie et analyse urine', replay:'https://streamyard.com/iigja9638j45u292' },
+    { num:12, date:'2025-06-12', titre:'Polyarthrites du chien : les étapes clés pour un diagnostic précis', domaine:'Infectiologie et immunologie', replay:'https://streamyard.com/2kcei9bz9ks6' },
+    { num:13, date:'2025-09-16', titre:'Manifestations cutanées de maladies systémiques : savoir les reconnaître !', domaine:'Dermatologie', replay:'https://streamyard.com/d5m8z89jp8kg' },
+    { num:14, date:'2025-10-21', titre:'Diarrhée chronique du chien : MICI or not MICI ?', domaine:'Gastro-entérologie', replay:'https://streamyard.com/y494nbczgeip' },
+    { num:15, date:'2025-12-09', titre:"Bilan d'extension du mastocytome : influences sur le pronostic et les options thérapeutiques", domaine:'Oncologie', replay:'https://streamyard.com/yd53tyg4vyh2' },
+    { num:16, date:'2026-01-20', titre:'Mastocytome félin : démêler le vrai du faux', domaine:'Oncologie', replay:'https://streamyard.com/ex7gmd3fv66m' },
+    { num:17, date:'2026-02-12', titre:"Analyser l'urine : en clinique ou au laboratoire ?", domaine:'Urologie et analyse urine', replay:'https://streamyard.com/y76kwfncjhns' },
+    { num:18, date:'2026-03-24', titre:'Pyodermites félines : mais oui, ça existe !', domaine:'Dermatologie', replay:'https://streamyard.com/vnkswcps7wmi' },
+    { num:19, date:'2026-04-30', titre:'Anémies félines : un diagnostic pas toujours si simple', domaine:'Hématologie', replay:'https://streamyard.com/vxceaxcr728f' },
+    { num:20, date:'2026-05-28', titre:'Leucocytose : comprendre pour mieux agir', domaine:'Hématologie', replay:'https://streamyard.com/agbf37ft8nf2' },
+    { num:21, date:'2026-06-25', titre:'Plaquettes : attention aux erreurs qui peuvent coûter la vie', domaine:'Hématologie', replay:'https://streamyard.com/watch/DNNapuaQ2ZMK' },
+  ];
+  renderTable();
+  setStatus('green', `${webinaires.length} webinaires chargés (données locales)`);
+  document.getElementById('last-update').textContent = 'Données intégrées — actualisez pour synchroniser Notion';
+  document.getElementById('btn-pdf').disabled = false;
+}
+
+function renderTable() {
+  const tbody = webinaires.map(w => `
+    <tr>
+      <td class="num">#${w.num}</td>
+      <td class="date-cell">${formatDate(w.date)}</td>
+      <td class="title-cell">${w.titre}</td>
+      <td><span class="domain-badge ${getDomainClass(w.domaine)}">${w.domaine || '—'}</span></td>
+      <td class="replay-cell">
+        ${w.replay
+          ? `<a class="replay-link" href="${w.replay}" target="_blank">▶ Replay</a>`
+          : `<span class="no-replay">À venir</span>`}
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('content').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>N°</th>
+          <th>Date</th>
+          <th>Titre</th>
+          <th>Domaine</th>
+          <th>Replay</th>
+        </tr>
+      </thead>
+      <tbody>${tbody}</tbody>
+    </table>
+  `;
+}
+
+function setStatus(color, text) {
+  document.getElementById('status-dot').className = `dot ${color}`;
+  document.getElementById('status-text').textContent = text;
+}
+
+function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const bleu = [20, 120, 192];
+  const rouge = [187, 59, 60];
+  const gris = [100, 100, 100];
+  const grisClair = [240, 244, 248];
+
+  // Header
+  doc.setFillColor(...bleu);
+  doc.rect(0, 0, 210, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('MYLAV DIDACTICS', 15, 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Catalogue des webinaires & replays', 15, 19);
+  doc.setFontSize(8);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 15, 25);
+  doc.text('mylav.net/fr', 190, 19, { align: 'right' });
+
+  // Ligne rouge
+  doc.setFillColor(...rouge);
+  doc.rect(0, 28, 210, 2, 'F');
+
+  // Tableau
+  let y = 38;
+  const cols = [12, 28, 48, 148, 180];
+  const headers = ['N°', 'Date', 'Titre du webinaire', 'Domaine', 'Lien replay'];
+
+  // En-têtes
+  doc.setFillColor(...grisClair);
+  doc.rect(10, y - 5, 190, 8, 'F');
+  doc.setTextColor(...bleu);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  headers.forEach((h, i) => doc.text(h, cols[i], y));
+  y += 6;
+
+  // Ligne séparatrice
+  doc.setDrawColor(...bleu);
+  doc.setLineWidth(0.3);
+  doc.line(10, y - 2, 200, y - 2);
+
+  // Lignes
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+
+  webinaires.forEach((w, idx) => {
+    if (y > 270) {
+      doc.addPage();
+      y = 20;
+    }
+
+    if (idx % 2 === 0) {
+      doc.setFillColor(248, 251, 255);
+      doc.rect(10, y - 4, 190, 9, 'F');
+    }
+
+    doc.setTextColor(...bleu);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`#${w.num}`, cols[0], y);
+
+    doc.setTextColor(...gris);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatDate(w.date), cols[1], y);
+
+    doc.setTextColor(50, 50, 50);
+    const titre = doc.splitTextToSize(w.titre, 95);
+    doc.text(titre[0], cols[2], y);
+
+    doc.setTextColor(...gris);
+    const dom = doc.splitTextToSize(w.domaine || '—', 28);
+    doc.text(dom[0], cols[3], y);
+
+    if (w.replay) {
+      doc.setTextColor(...bleu);
+      doc.textWithLink('▶ Voir le replay', cols[4], y, { url: w.replay });
+    } else {
+      doc.setTextColor(180, 180, 180);
+      doc.text('À venir', cols[4], y);
+    }
+
+    y += 9;
+  });
+
+  // Footer
+  doc.setFillColor(...grisClair);
+  doc.rect(0, 285, 210, 12, 'F');
+  doc.setTextColor(...gris);
+  doc.setFontSize(7);
+  doc.text('MYLAV — Laboratory of clinicians for clinicians', 105, 292, { align: 'center' });
+  doc.text('www.mylav.net/fr · info.fr@mylav.net · 09 72 01 72 01', 105, 296, { align: 'center' });
+
+  doc.save(`MYLAV_Didactics_Replays_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+// Lancement
+loadData();
+</script>
+</body>
+</html>
