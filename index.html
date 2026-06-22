@@ -266,7 +266,7 @@
       <small id="last-update">Chargement en cours…</small>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn-refresh" onclick="loadData()">↻ Actualiser</button>
+      <button class="btn-refresh" onclick="loadStaticData()">↻ Actualiser</button>
       <button class="btn-pdf" id="btn-pdf" onclick="generatePDF()" disabled>
         ⬇ Télécharger PDF
       </button>
@@ -411,7 +411,8 @@ function loadStaticData() {
   ];
   renderTable();
   setStatus('green', `${webinaires.length} webinaires chargés (données locales)`);
-  document.getElementById('last-update').textContent = 'Données intégrées — actualisez pour synchroniser Notion';
+  document.getElementById('last-update').textContent = `Mis à jour le ${new Date().toLocaleDateString('fr-FR')}`;
+  document.getElementById('config-notice').style.display = 'none';
   document.getElementById('btn-pdf').disabled = false;
 }
 
@@ -550,8 +551,8 @@ function generatePDF() {
   doc.save(`MYLAV_Didactics_Replays_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-// Lancement
-loadData();
+// Lancement — données intégrées directement
+loadStaticData();
 </script>
 </body>
 </html>
