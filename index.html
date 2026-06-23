@@ -266,7 +266,7 @@
       <small id="last-update">Chargement en cours…</small>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn-refresh" onclick="loadStaticData()">↻ Actualiser</button>
+      <button class="btn-refresh" onclick="loadData()">↻ Actualiser</button>
       <button class="btn-pdf" id="btn-pdf" onclick="generatePDF()" disabled>
         ⬇ Télécharger PDF
       </button>
@@ -299,9 +299,10 @@
 
 <script>
 // ============================================================
-// CONFIGURATION — remplace par l'ID de ta page Notion publique
+// CONFIGURATION NOTION
 // ============================================================
-const NOTION_PAGE_ID = 'NOTION_PAGE_ID_ICI';
+const NOTION_TOKEN = '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';
+const NOTION_DB_ID = '09d5255d-35bf-4145-af36-b6db914cbcc0';
 // ============================================================
 
 let webinaires = [];
@@ -328,30 +329,23 @@ function formatDate(dateStr) {
 }
 
 async function loadData() {
-  if (NOTION_PAGE_ID === 'NOTION_PAGE_ID_ICI') {
-    document.getElementById('config-notice').style.display = 'block';
-    setStatus('orange', 'Page Notion non configurée — voir la notice ci-dessous');
-    document.getElementById('content').innerHTML = `
-      <div class="error-box">
-        Configure l'ID de ta page Notion publique dans le fichier index.html.
-      </div>`;
-    return;
-  }
-
   setStatus('orange', 'Connexion à Notion…');
   document.getElementById('last-update').textContent = 'Chargement…';
 
   try {
-    const url = `https://notion-proxy.vercel.app/api/page/${NOTION_PAGE_ID}`;
-    // On utilise l'API publique Notion via la page partagée
     const res = await fetch(
-      `https://api.notion.com/v1/databases/${NOTION_PAGE_ID}/query`,
+      `https://api.notion.com/v1/databases/${NOTION_DB_ID}/query`,
       {
         method: 'POST',
-        headers: { 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${NOTION_TOKEN}`,
+          'Notion-Version': '2022-06-28',
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           filter: { property: 'Statut', select: { equals: 'Diffusé' } },
-          sorts: [{ property: 'Numéro', direction: 'ascending' }]
+          sorts: [{ property: 'Numéro', direction: 'ascending' }],
+          page_size: 100
         })
       }
     );
@@ -359,14 +353,16 @@ async function loadData() {
     if (!res.ok) throw new Error(`Erreur API: ${res.status}`);
     const data = await res.json();
     webinaires = parseResults(data.results);
+    if (webinaires.length === 0) throw new Error('Aucun résultat');
     renderTable();
-    setStatus('green', `${webinaires.length} webinaires chargés`);
+    setStatus('green', `${webinaires.length} webinaires chargés depuis Notion`);
     document.getElementById('last-update').textContent =
       `Mis à jour le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}`;
     document.getElementById('btn-pdf').disabled = false;
+    document.getElementById('config-notice').style.display = 'none';
 
   } catch(e) {
-    // Fallback : données statiques intégrées (mises à jour manuellement)
+    console.warn('Notion API indisponible, chargement local :', e.message);
     loadStaticData();
   }
 }
@@ -551,8 +547,8 @@ function generatePDF() {
   doc.save(`MYLAV_Didactics_Replays_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-// Lancement — données intégrées directement
-loadStaticData();
+// Lancement — connexion Notion en temps réel
+loadData();
 </script>
 </body>
 </html>
